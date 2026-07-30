@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Lost Memories</string>
+    <string name="title_activity_main">Lost Memories</string>
+    <string name="package_name">com.lostmemories.game</string>
+    <string name="custom_url_scheme">com.lostmemories.game</string>
+</resources>
