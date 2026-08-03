@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-  <title>HOLLOWGROUND — Day 1</title>
+  <title>HOLLOWGROUND — Day 1: The Invitation</title>
 
-  <!-- Google Fonts: Cinzel for cinematic horror title, Inter for clean HUD -->
+  <!-- Google Fonts: Cinzel for cinematic horror title, Inter for clean HUD, Space Mono for terminal UI -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Inter:wght@300;400;600;700&family=Space+Mono&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Inter:wght@300;400;600;700&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
 
   <link rel="stylesheet" href="style.css">
 </head>
@@ -17,10 +17,12 @@
 <div id="overlay">
   <div class="eyebrow">HOLLOWGROUND</div>
   <h1>DAY 1</h1>
-  <p>You followed an invitation nobody sent, up the porch steps of a house you don't remember.</p>
-  <p>Now the door behind you is gone, and something inside knows your name.</p>
-  <p>Find the three pages scattered through the house. Find the way out.</p>
-  <p id="controlsHint">WASD move &nbsp;·&nbsp; MOUSE look &nbsp;·&nbsp; F flashlight &nbsp;·&nbsp; SHIFT run &nbsp;·&nbsp; E pick up / hide &nbsp;·&nbsp; C crouch</p>
+  <p class="subtitle">THE INVITATION</p>
+  <p>You followed an invitation nobody sent, up the porch steps of a Victorian house lost to decay.</p>
+  <p>The heavy front doors slammed shut behind you—chained from the outside. Something inside is breathing in the dark.</p>
+  <p>Find the 3 hidden journal pages scattered across the house to break the chains and unlock the main exit.</p>
+  <p id="controlsHint">WASD Move &nbsp;·&nbsp; MOUSE Look &nbsp;·&nbsp; F Flashlight &nbsp;·&nbsp; SHIFT Run &nbsp;·&nbsp; E Interact / Hide &nbsp;·&nbsp; C Crouch</p>
+  
   <div id="difficultyRow">
     <button class="diff-btn" data-diff="calm">CALM</button>
     <button class="diff-btn selected" data-diff="normal">NORMAL</button>
@@ -32,35 +34,40 @@
 <div id="chapterCard" class="hidden">
   <div class="eyebrow">CHAPTER ONE</div>
   <h1>THE INVITATION</h1>
-  <p>The letter said: <em>"Come alone. Bring nothing. We already know what you're afraid of."</em><br><br>You should have thrown it away.</p>
+  <p>The letter said: <em>"Come alone. Bring nothing. We already know what you're afraid of."</em><br><br>You should never have opened the door.</p>
 </div>
 
-<div id="jumpscare">
-  <h1>IT WEARS YOUR FACE</h1>
-  <p id="jumpscareText">The thing in the house doesn't need to catch you. It just needs you to stop running.</p>
-  <button class="again-btn" id="retryBtn">TRY AGAIN</button>
+<div id="jumpscare" class="hidden">
+  <canvas id="jumpscareCanvas"></canvas>
+  <div class="jumpscare-content">
+    <h1>IT CONSUMED YOU</h1>
+    <p id="jumpscareText">The shadow in the hallway claimed your soul. Darkness closes in forever.</p>
+    <button class="again-btn" id="retryBtn">TRY AGAIN</button>
+  </div>
 </div>
 
-<div id="win">
-  <div class="eyebrow">CHAPTER ONE — COMPLETE</div>
-  <h1>YOU MADE IT OUT</h1>
+<div id="win" class="hidden">
+  <div class="eyebrow">CHAPTER ONE — ESCAPED</div>
+  <h1>YOU BROKE THE CHAINS</h1>
   <p id="winTime"></p>
-  <p>But the door you climbed through wasn't the one you came in. And somewhere behind you, something exhaled in relief that almost sounded like a laugh.</p>
-  <p class="teaser">DAY 2: THE ORCHARD — coming soon</p>
-  <button class="again-btn" id="againBtn">RETURN TO CHAPTER ONE</button>
+  <p>You burst into the cold night air as the heavy oak doors slam shut behind you. Somewhere in the house, a low guttural screech echoes into the darkness...</p>
+  <p class="teaser">DAY 2: THE ORCHARD — COMING SOON</p>
+  <button class="again-btn" id="againBtn">PLAY AGAIN</button>
 </div>
 
 <div id="noteText"></div>
 <div id="whisperText"></div>
-<div id="pickupPrompt">[ E ] PICK UP PAGE</div>
+<div id="toastMsg"></div>
+<div id="pickupPrompt">[ E ] INTERACT</div>
 <div id="interactHint"></div>
 <div id="crosshair"></div>
 <div id="vignette"></div>
 <div id="fear"></div>
 <div id="breathFog"></div>
 <canvas id="staticNoise"></canvas>
+
 <div id="objective">PAGES <span class="count" id="pageCount">0 / 3</span></div>
-<div id="roomLabel"><span id="roomLabelText"></span></div>
+<div id="roomLabel"><span id="roomLabelText">ENTRY HALL</span></div>
 
 <div id="hud">
   <div class="hud-item">
@@ -68,7 +75,7 @@
     <div id="battery"><div id="battery-fill"></div></div>
   </div>
   <div class="hud-item" style="margin-top:10px;">
-    <div class="bat-label"><span>STAMINA</span></div>
+    <div class="bat-label"><span>STAMINA</span><span id="staminaPercent">100%</span></div>
     <div id="stamina"><div id="stamina-fill"></div></div>
   </div>
 </div>
