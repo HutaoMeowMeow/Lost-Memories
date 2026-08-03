@@ -5,10 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <title>HOLLOWGROUND — Day 1: The Invitation</title>
 
-  <!-- Google Fonts: Cinzel for cinematic horror title, Inter for clean HUD, Space Mono for terminal UI -->
+  <!-- Google Fonts: Cinzel for cinematic horror title, Caveat for realistic handwriting, Inter & Space Mono for UI -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Inter:wght@300;400;600;700&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Cinzel:wght@400;700;900&family=Inter:wght@300;400;600;700&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
 
   <link rel="stylesheet" href="style.css">
 </head>
@@ -18,7 +18,7 @@
   <div class="eyebrow">HOLLOWGROUND</div>
   <h1>DAY 1</h1>
   <p class="subtitle">THE INVITATION</p>
-  <p>You followed an invitation nobody sent, up the porch steps of a Victorian house lost to decay.</p>
+  <p>You followed an invitation nobody sent, up the porch steps of a windowless Victorian house lost to decay.</p>
   <p>The heavy front doors slammed shut behind you—chained from the outside. Something inside is breathing in the dark.</p>
   <p>Find the 3 hidden journal pages scattered across the house to break the chains and unlock the main exit.</p>
   <p id="controlsHint">WASD Move &nbsp;·&nbsp; MOUSE Look &nbsp;·&nbsp; F Flashlight &nbsp;·&nbsp; SHIFT Run &nbsp;·&nbsp; E Interact / Hide &nbsp;·&nbsp; C Crouch</p>
@@ -36,6 +36,36 @@
   <h1>THE INVITATION</h1>
   <p>The letter said: <em>"Come alone. Bring nothing. We already know what you're afraid of."</em><br><br>You should never have opened the door.</p>
 </div>
+
+<!-- FULLSCREEN AGED PARCHMENT PAPER NOTE OVERLAY -->
+<div id="noteModal" class="hidden">
+  <div class="parchment-card" id="parchmentCard">
+    <button class="close-note-btn" id="closeNoteBtn" title="Close Note (ESC / E)">&times;</button>
+
+    <div class="parchment-header">
+      <div class="parchment-eyebrow" id="noteEyebrow">PAGE 1 OF 3</div>
+      <h2 class="parchment-title" id="noteTitle">JOURNAL ENTRY I</h2>
+    </div>
+
+    <div class="parchment-divider"></div>
+
+    <p class="parchment-body" id="noteBody"></p>
+
+    <div class="parchment-footer">
+      <span class="note-dismiss-hint">Press <strong>[ E ]</strong>, <strong>[ ESC ]</strong>, or click <strong>( X )</strong> to return to game</span>
+    </div>
+  </div>
+</div>
+
+<!-- HIDING OVERLAYS -->
+<div id="wardrobeOverlay" class="hidden">
+  <div class="slat-left"></div>
+  <div class="slat-right"></div>
+</div>
+<div id="bedOverlay" class="hidden">
+  <div class="bed-dust-vignette"></div>
+</div>
+<div id="mirrorFlash" class="hidden"></div>
 
 <div id="jumpscare" class="hidden">
   <canvas id="jumpscareCanvas"></canvas>
@@ -55,7 +85,6 @@
   <button class="again-btn" id="againBtn">PLAY AGAIN</button>
 </div>
 
-<div id="noteText"></div>
 <div id="whisperText"></div>
 <div id="toastMsg"></div>
 <div id="pickupPrompt">[ E ] INTERACT</div>

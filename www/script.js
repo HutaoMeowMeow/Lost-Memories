@@ -66,7 +66,6 @@
     { r: 11, c: 3, yaw: 0 }
   ];
 
-  // Specific furniture surface locations for journal pages
   const ALL_PAGE_LOCATIONS = [
     { posCell: {r:1, c:5}, h: 0.95, room: "Bedroom Nightstand" },
     { posCell: {r:2, c:1}, h: 0.90, room: "Bedroom Vanity" },
@@ -79,10 +78,23 @@
     { posCell: {r:13, c:9}, h: 0.96, room: "Entry Console Table" }
   ];
 
+  // DISTINCT LORE TITLES & CREEPY HANDWRITTEN NOTES FOR THE 3 PAGES
   const PAGE_NOTES = [
-    "\"Day one,\" the note reads in scratchy ink. \"The heavy oak doors chained shut behind me. Something inside is breathing in the dark.\"",
-    "\"There's a second set of footprints in the dust. They match mine, but they're following me backwards. IT KNOWS WHERE I AM!\"",
-    "\"I found a mirror with no reflection in it... only a tall shadow standing where I should be, smiling with my mouth.\""
+    {
+      eyebrow: "JOURNAL PAGE 1 OF 3",
+      title: "JOURNAL ENTRY I — THE INVITATION",
+      body: "\"Day one. The heavy oak doors chained themselves shut behind me at midnight. I followed an invitation nobody sent, up the porch steps of a house forgotten by time. The air in here is freezing cold and thick with decay. Something inside is breathing in the dark... waiting for me to step into the shadows.\""
+    },
+    {
+      eyebrow: "JOURNAL PAGE 2 OF 3",
+      title: "JOURNAL ENTRY II — THE AWAKENING",
+      body: "\"IT HAS AWAKENED! There's a second set of footprints in the dust. They match mine, but they're following me backwards. I heard a bone-chilling screech echo through the halls—The Watcher is hunting me right now! I must keep moving and find the last page before it catches me!\""
+    },
+    {
+      eyebrow: "JOURNAL PAGE 3 OF 3",
+      title: "JOURNAL ENTRY III — THE ESCAPE",
+      body: "\"THE CHAINS HAVE BROKEN! As I picked up this final page, I heard the heavy iron lock shatter at the front entrance. The Gothic exit doors are unlocked and cracked open! RUN FOR THE MAIN EXIT NOW BEFORE THE SHADOW CONSUMES YOU FOR GOOD!\""
+    }
   ];
 
   const HIDE_SPOTS = [ {r:4,c:5}, {r:9,c:5}, {r:9,c:11} ];
@@ -378,6 +390,9 @@
   // ---------- LIGHTS & FLASHLIGHT ----------
   const lamps = [];
   const candleLights = [];
+  const hideSpots = [];
+  const mirrors = [];
+  let ambientExtinguished = false;
 
   function addLamp(cellR, cellC, intensity=0.9, dist=10){
     const pos = cellCenter(cellR, cellC);
@@ -412,7 +427,7 @@
     shade.position.set(pos.x, bulbY+0.18, pos.z);
     scene.add(shade);
 
-    lamps.push({ light, base: intensity, flickerPhase: Math.random()*100, willDie: Math.random()<0.4, deadUntil:0 });
+    lamps.push({ light, bulb, base: intensity, flickerPhase: Math.random()*100, willDie: Math.random()<0.4, deadUntil:0 });
     return light;
   }
   addLamp(2, 3, 0.85, 10);
@@ -438,7 +453,6 @@
   // ---------- REALISTIC GOTHIC FRONT EXIT DOOR SYSTEM ----------
   const exitPos = cellCenter(EXIT.r, EXIT.c);
 
-  // Stone Archway Frame for Exit
   const archGroup = new THREE.Group();
   archGroup.position.set(exitPos.x, 0, exitPos.z);
 
@@ -460,7 +474,6 @@
 
   archGroup.add(archLeft, archRight, archTop);
 
-  // Exit Sign Canvas Plaque
   const signCanvas = document.createElement('canvas'); signCanvas.width = 256; signCanvas.height = 64;
   const signCtx = signCanvas.getContext('2d');
   signCtx.fillStyle = '#14100c'; signCtx.fillRect(0,0,256,64);
@@ -474,7 +487,6 @@
 
   scene.add(archGroup);
 
-  // Heavy Oak Double Doors
   const exitDoorPivotL = new THREE.Group();
   exitDoorPivotL.position.set(exitPos.x - doorWidth/2, 0, exitPos.z);
 
@@ -491,14 +503,12 @@
     leaf.castShadow = leaf.receiveShadow = true;
     leafGroup.add(leaf);
 
-    // Iron Studs & Straps
     for (let y = 0.5; y < doorHeight; y += 1.0) {
       const strap = new THREE.Mesh(new THREE.BoxGeometry(panelW*0.9, 0.08, doorThickness*1.15), ironMat);
       strap.position.set(sign * panelW/2, y, 0);
       leafGroup.add(strap);
     }
 
-    // Heavy Ring Knocker & Handles
     const ring = new THREE.Mesh(new THREE.TorusGeometry(0.08, 0.02, 8, 12), ironMat);
     ring.position.set(sign * (panelW*0.8), doorHeight*0.5, doorThickness/2 + 0.03);
     leafGroup.add(ring);
@@ -510,7 +520,6 @@
   exitDoorPivotR.add(createGothicDoorLeaf(-1));
   scene.add(exitDoorPivotL, exitDoorPivotR);
 
-  // Rusted Chains & Padlock (Visually lock the exit until 3 pages are collected)
   const chainGroup = new THREE.Group();
   chainGroup.position.set(exitPos.x, doorHeight*0.5, exitPos.z + 0.12);
 
@@ -608,7 +617,6 @@
   addSwingDoor(10,3,'x');
   addSwingDoor(10,10,'x');
 
-  // Exposed Ceiling Beams
   const beamMat = new THREE.MeshStandardMaterial({ color:0x0f0a06, roughness:0.92 });
   for (let r=2; r<ROWS-1; r+=3){
     const beam = new THREE.Mesh(new THREE.BoxGeometry(COLS*CELL*0.94, 0.24, 0.32), beamMat);
@@ -617,64 +625,32 @@
     scene.add(beam);
   }
 
-  // Dust Motes
-  const MOTE_COUNT = 130;
+  // ---------- DUST MOTES (VOLUMETRIC FLASHLIGHT BEAM PARTICLES) ----------
+  const MOTE_COUNT = 220;
   const moteGeo = new THREE.BufferGeometry();
-  const motePos = new Float32Array(MOTE_COUNT*3);
+  const motePos = new Float32Array(MOTE_COUNT * 3);
+  const moteColors = new Float32Array(MOTE_COUNT * 3);
   const moteSpeed = [];
-  for (let i=0; i<MOTE_COUNT; i++){
-    motePos[i*3]   = (Math.random()-0.5)*COLS*CELL;
-    motePos[i*3+1] = Math.random()*WALL_H;
-    motePos[i*3+2] = (Math.random()-0.5)*ROWS*CELL;
-    moteSpeed.push({ vy: 0.04+Math.random()*0.07, phase: Math.random()*10 });
+  for (let i = 0; i < MOTE_COUNT; i++) {
+    motePos[i*3]     = (Math.random() - 0.5) * COLS * CELL;
+    motePos[i*3+1]   = Math.random() * WALL_H;
+    motePos[i*3+2]   = (Math.random() - 0.5) * ROWS * CELL;
+    moteColors[i*3]   = 0.05;
+    moteColors[i*3+1] = 0.04;
+    moteColors[i*3+2] = 0.03;
+    moteSpeed.push({ vy: 0.03 + Math.random() * 0.07, phase: Math.random() * 10 });
   }
   moteGeo.setAttribute('position', new THREE.BufferAttribute(motePos, 3));
-  const moteMat = new THREE.PointsMaterial({ color:0xe0d0a5, size:0.04, transparent:true, opacity:0.35, sizeAttenuation:true });
+  moteGeo.setAttribute('color', new THREE.BufferAttribute(moteColors, 3));
+  const moteMat = new THREE.PointsMaterial({
+    size: 0.06,
+    transparent: true,
+    opacity: 0.85,
+    vertexColors: true,
+    sizeAttenuation: true
+  });
   const motes = new THREE.Points(moteGeo, moteMat);
   scene.add(motes);
-
-  // Window Frames with Blue Moonlight Beams & Curtains
-  function addWindow(r,c,side){
-    const pos = cellCenter(r,c);
-    const inset = CELL/2 - 0.06;
-    let px=pos.x, pz=pos.z, rotY=0;
-    if (side==='N'){ pz = pos.z + inset; rotY = 0; }
-    if (side==='S'){ pz = pos.z - inset; rotY = Math.PI; }
-    if (side==='W'){ px = pos.x + inset; rotY = Math.PI/2; }
-    if (side==='E'){ px = pos.x - inset; rotY = -Math.PI/2; }
-
-    const frameGroup = new THREE.Group();
-    frameGroup.position.set(px, WALL_H*0.55, pz);
-    frameGroup.rotation.y = rotY;
-
-    const outerFrame = new THREE.Mesh(new THREE.BoxGeometry(2.0, 2.4, 0.12), woodMatDark);
-    frameGroup.add(outerFrame);
-
-    const pane = new THREE.Mesh(
-      new THREE.PlaneGeometry(1.8, 2.2),
-      new THREE.MeshStandardMaterial({ color:0x8faec7, emissive:0x2d485c, emissiveIntensity:0.6, roughness:0.25, side:THREE.DoubleSide })
-    );
-    pane.position.z = 0.02;
-    frameGroup.add(pane);
-
-    const curtainMat = new THREE.MeshStandardMaterial({ color: 0x3a1414, roughness: 0.9 });
-    const curtainL = new THREE.Mesh(new THREE.BoxGeometry(0.4, 2.3, 0.1), curtainMat);
-    curtainL.position.set(-0.8, 0, 0.08);
-    const curtainR = new THREE.Mesh(new THREE.BoxGeometry(0.4, 2.3, 0.1), curtainMat);
-    curtainR.position.set(0.8, 0, 0.08);
-    frameGroup.add(curtainL, curtainR);
-
-    scene.add(frameGroup);
-
-    const moon = new THREE.PointLight(0x4a749d, 0.65, 12);
-    moon.position.set(px, WALL_H*0.55, pz);
-    scene.add(moon);
-  }
-  addWindow(0,3,'N');
-  addWindow(0,11,'N');
-  addWindow(14,9,'S');
-  addWindow(7,0,'W');
-  addWindow(7,14,'E');
 
   function registerCollisionBox(x, z, w, d){
     wallBoxes.push({
@@ -695,7 +671,6 @@
     scene.add(rug);
   }
 
-  // ---------- HORROR OCCULT DECORATIONS & BLOOD SPOOTS ----------
   function createBloodSplatter(x, y, z, rotX, rotY, scaleW=1.4, scaleH=1.4){
     const cnv = document.createElement('canvas'); cnv.width = 128; cnv.height = 128;
     const ctx = cnv.getContext('2d');
@@ -759,7 +734,6 @@
   }
   createRitualCircle(cellCenter(8,4).x, cellCenter(8,4).z);
 
-  // Flickering Candles
   function addCandle(x, y, z){
     const candleMat = new THREE.MeshStandardMaterial({ color:0xe2d6be, roughness:0.6 });
     const candle = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.045, 0.22, 8), candleMat);
@@ -784,13 +758,12 @@
   addCandle(cellCenter(1,5).x + 0.2, 0.92, cellCenter(1,5).z - 0.2);
   addCandle(cellCenter(12,1).x + 0.4, 0.96, cellCenter(12,1).z - 0.2);
 
-  // ---------- HOUSE FURNITURE (STRICTLY SCOPED TO ROOMS & WALLS) ----------
-
-  // 1. BEDROOM (r:1-4, c:1-6) - Flush against North/West outer walls
+  // ---------- HOUSE FURNITURE & INTERACTIVE SPOTS ----------
   function createBed(cellR, cellC){
     const pos = cellCenter(cellR, cellC);
     const group = new THREE.Group();
-    group.position.set(pos.x, 0, pos.z - CELL/2 + 1.5); // Against North wall
+    const bedPos = new THREE.Vector3(pos.x, 0, pos.z - CELL/2 + 1.5);
+    group.position.copy(bedPos);
 
     const frame = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.35, 3.0), woodMatDark);
     frame.position.y = 0.25;
@@ -799,12 +772,12 @@
 
     const headboard = new THREE.Mesh(new THREE.BoxGeometry(2.4, 1.6, 0.16), woodMatMahogany);
     headboard.position.set(0, 0.9, -1.4);
-    headboard.castShadow = true;
+    headboard.castShadow = headboard.receiveShadow = true;
     group.add(headboard);
 
     const footboard = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.85, 0.16), woodMatMahogany);
     footboard.position.set(0, 0.5, 1.4);
-    footboard.castShadow = true;
+    footboard.castShadow = footboard.receiveShadow = true;
     group.add(footboard);
 
     const mattress = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.45, 2.7), new THREE.MeshStandardMaterial({ color:0xd0c4b4, roughness:0.9 }));
@@ -814,24 +787,33 @@
 
     const pillowMat = new THREE.MeshStandardMaterial({ color:0xe8e0d4, roughness:0.85 });
     const pillow1 = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.16, 0.5), pillowMat);
-    pillow1.position.set(-0.6, 0.9, -1.0); pillow1.rotation.y = 0.08;
+    pillow1.position.set(-0.6, 0.9, -1.0); pillow1.rotation.y = 0.08; pillow1.castShadow = true;
     const pillow2 = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.16, 0.5), pillowMat);
-    pillow2.position.set(0.6, 0.9, -1.0); pillow2.rotation.y = -0.08;
+    pillow2.position.set(0.6, 0.9, -1.0); pillow2.rotation.y = -0.08; pillow2.castShadow = true;
     group.add(pillow1, pillow2);
 
     const blanket = new THREE.Mesh(new THREE.BoxGeometry(2.22, 0.15, 1.6), new THREE.MeshStandardMaterial({ color:0x4a1f1f, roughness:0.95 }));
-    blanket.position.set(0, 0.85, 0.5);
+    blanket.position.set(0, 0.85, 0.5); blanket.castShadow = blanket.receiveShadow = true;
     group.add(blanket);
 
     scene.add(group);
     registerCollisionBox(pos.x, pos.z - CELL/2 + 1.5, 2.6, 3.2);
+
+    hideSpots.push({
+      id: 'bed_' + cellR + '_' + cellC,
+      type: 'bed',
+      pos: bedPos.clone(),
+      radius: 2.2,
+      occupied: false,
+      label: 'UNDER MASTER BED'
+    });
   }
   createBed(1, 2);
 
   function createNightstand(cellR, cellC){
     const pos = cellCenter(cellR, cellC);
     const group = new THREE.Group();
-    group.position.set(pos.x, 0, pos.z - CELL/2 + 0.5); // Against North wall
+    group.position.set(pos.x, 0, pos.z - CELL/2 + 0.5);
 
     const body = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.9, 0.8), woodMatMid);
     body.position.y = 0.45;
@@ -850,7 +832,8 @@
   function createWardrobe(cellR, cellC){
     const pos = cellCenter(cellR, cellC);
     const group = new THREE.Group();
-    group.position.set(pos.x - CELL/2 + 0.5, 0, pos.z); // Against West wall
+    const wPos = new THREE.Vector3(pos.x - CELL/2 + 0.5, 0, pos.z);
+    group.position.copy(wPos);
 
     const body = new THREE.Mesh(new THREE.BoxGeometry(0.8, 2.5, 1.7), woodMatDark);
     body.position.y = 1.25;
@@ -858,42 +841,60 @@
     group.add(body);
 
     scene.add(group);
-    registerCollisionBox(pos.x - CELL/2 + 0.5, pos.z, 0.9, 1.8);
+    registerCollisionBox(wPos.x, wPos.z, 0.9, 1.8);
+
+    hideSpots.push({
+      id: 'wardrobe_' + cellR + '_' + cellC,
+      type: 'wardrobe',
+      pos: wPos.clone(),
+      radius: 1.8,
+      occupied: false,
+      label: 'INSIDE WARDROBE'
+    });
   }
   createWardrobe(4, 1);
+  createWardrobe(9, 1);
 
   function createVanity(cellR, cellC){
     const pos = cellCenter(cellR, cellC);
     const group = new THREE.Group();
-    group.position.set(pos.x - CELL/2 + 0.4, 0, pos.z); // Against West wall
+    const vPos = new THREE.Vector3(pos.x - CELL/2 + 0.4, 0, pos.z);
+    group.position.copy(vPos);
 
     const table = new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.85, 1.4), woodMatMid);
     table.position.y = 0.425;
-    table.castShadow = true;
+    table.castShadow = table.receiveShadow = true;
     group.add(table);
 
     const mirrorFrame = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 0.04, 16), woodMatDark);
     mirrorFrame.rotation.z = Math.PI/2;
     mirrorFrame.position.set(-0.25, 1.35, 0);
+    mirrorFrame.castShadow = true;
     group.add(mirrorFrame);
 
-    const mirrorGlass = new THREE.Mesh(new THREE.CircleGeometry(0.36, 16), new THREE.MeshStandardMaterial({color:0x556677, metalness:0.8, roughness:0.2}));
+    const mirrorGlass = new THREE.Mesh(new THREE.CircleGeometry(0.36, 16), new THREE.MeshStandardMaterial({color:0x556677, metalness:0.85, roughness:0.2}));
     mirrorGlass.rotation.y = Math.PI/2;
     mirrorGlass.position.set(-0.22, 1.35, 0);
     group.add(mirrorGlass);
 
     scene.add(group);
-    registerCollisionBox(pos.x - CELL/2 + 0.4, pos.z, 0.75, 1.5);
+    registerCollisionBox(vPos.x, vPos.z, 0.75, 1.5);
+
+    mirrors.push({
+      id: 'vanity_' + cellR + '_' + cellC,
+      pos: new THREE.Vector3(vPos.x + 0.18, 1.35, vPos.z),
+      normal: new THREE.Vector3(1, 0, 0),
+      triggered: false
+    });
   }
   createVanity(2, 1);
 
   addRug(2, 3, 3.2, 3.4, 0x5c2a2a);
 
-  // 2. BATHROOM (r:1-4, c:8-13) - Flush against North/East outer walls
   function createBathtub(cellR, cellC){
     const pos = cellCenter(cellR, cellC);
     const group = new THREE.Group();
-    group.position.set(pos.x + CELL/2 - 0.6, 0, pos.z); // Flush against East wall
+    group.position.set(pos.x + CELL/2 - 0.6, 0, pos.z);
 
     const outerTub = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.75, 1.8), porcelainMat);
     outerTub.position.y = 0.375;
@@ -918,7 +919,7 @@
   function createToilet(cellR, cellC){
     const pos = cellCenter(cellR, cellC);
     const group = new THREE.Group();
-    group.position.set(pos.x, 0, pos.z - CELL/2 + 0.5); // Flush against North wall
+    group.position.set(pos.x, 0, pos.z - CELL/2 + 0.5);
 
     const base = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.45, 0.7), porcelainMat);
     base.position.y = 0.225;
@@ -938,7 +939,8 @@
   function createVanitySink(cellR, cellC){
     const pos = cellCenter(cellR, cellC);
     const group = new THREE.Group();
-    group.position.set(pos.x - CELL/2 + 0.5, 0, pos.z); // Flush against interior West wall
+    const vsPos = new THREE.Vector3(pos.x - CELL/2 + 0.5, 0, pos.z);
+    group.position.copy(vsPos);
 
     const cabinet = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.9, 1.4), woodMatDark);
     cabinet.position.y = 0.45;
@@ -947,18 +949,35 @@
 
     const sinkBasin = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.15, 0.8), porcelainMat);
     sinkBasin.position.set(0, 0.92, 0);
+    sinkBasin.castShadow = sinkBasin.receiveShadow = true;
     group.add(sinkBasin);
 
+    const mirrorFrame = new THREE.Mesh(new THREE.BoxGeometry(0.04, 1.1, 1.2), woodMatDark);
+    mirrorFrame.position.set(0.38, 1.65, 0);
+    mirrorFrame.castShadow = true;
+    group.add(mirrorFrame);
+
+    const mirrorGlass = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 1.0), new THREE.MeshStandardMaterial({ color:0x556677, metalness:0.85, roughness:0.2 }));
+    mirrorGlass.rotation.y = Math.PI / 2;
+    mirrorGlass.position.set(0.35, 1.65, 0);
+    group.add(mirrorGlass);
+
     scene.add(group);
-    registerCollisionBox(pos.x - CELL/2 + 0.5, pos.z, 0.9, 1.5);
+    registerCollisionBox(vsPos.x, vsPos.z, 0.9, 1.5);
+
+    mirrors.push({
+      id: 'sink_' + cellR + '_' + cellC,
+      pos: new THREE.Vector3(vsPos.x + 0.35, 1.65, vsPos.z),
+      normal: new THREE.Vector3(1, 0, 0),
+      triggered: false
+    });
   }
   createVanitySink(3, 8);
 
-  // 3. LIVING ROOM (r:6-9, c:1-6) - Flush against West/South walls
   function createSofa(cellR, cellC){
     const pos = cellCenter(cellR, cellC);
     const group = new THREE.Group();
-    group.position.set(pos.x - CELL/2 + 0.7, 0, pos.z); // Against West wall
+    group.position.set(pos.x - CELL/2 + 0.7, 0, pos.z);
 
     const base = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.45, 2.7), fabricMat);
     base.position.y = 0.225;
@@ -1007,7 +1026,7 @@
   function createBookshelf(cellR, cellC){
     const pos = cellCenter(cellR, cellC);
     const group = new THREE.Group();
-    group.position.set(pos.x, 0, pos.z + CELL/2 - 0.4); // Against South wall
+    group.position.set(pos.x, 0, pos.z + CELL/2 - 0.4);
 
     const frame = new THREE.Mesh(new THREE.BoxGeometry(1.7, 2.3, 0.65), woodMatDark);
     frame.position.y = 1.15;
@@ -1033,7 +1052,7 @@
   function createGrandfatherClock(cellR, cellC){
     const pos = cellCenter(cellR, cellC);
     const group = new THREE.Group();
-    group.position.set(pos.x - CELL/2 + 0.4, 0, pos.z); // Against West wall
+    group.position.set(pos.x - CELL/2 + 0.4, 0, pos.z);
 
     const body = new THREE.Mesh(new THREE.BoxGeometry(0.55, 2.5, 0.65), woodMatMahogany);
     body.position.y = 1.25;
@@ -1061,7 +1080,6 @@
 
   addRug(8, 3, 3.8, 2.8, 0x2a2e3a);
 
-  // CRT TV Setup on Console Table
   const tvBody = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.75, 0.65), new THREE.MeshStandardMaterial({color:0x1a1a1a, roughness:0.8}));
   tvBody.position.set(cellCenter(6,4).x, 0.88, cellCenter(6,4).z - CELL/2 + 0.4);
   tvBody.castShadow = true;
@@ -1089,11 +1107,10 @@
     tvTex.needsUpdate = true;
   }
 
-  // 4. KITCHEN & DINING (r:6-9, c:8-13) - Flush against North/East walls
   function createKitchenCounter(cellR, cellC){
     const pos = cellCenter(cellR, cellC);
     const group = new THREE.Group();
-    group.position.set(pos.x, 0, pos.z - CELL/2 + 0.5); // Against North interior wall
+    group.position.set(pos.x, 0, pos.z - CELL/2 + 0.5);
 
     const base = new THREE.Mesh(new THREE.BoxGeometry(3.2, 1.0, 0.95), woodMatMid);
     base.position.y = 0.5;
@@ -1140,11 +1157,10 @@
 
   addRug(9, 11, 2.6, 2.6, 0x3a2c1c);
 
-  // 5. ENTRY HALL & STUDY (r:11-13, c:1-13) - Flush against South/West walls
   function createDesk(cellR, cellC){
     const pos = cellCenter(cellR, cellC);
     const group = new THREE.Group();
-    group.position.set(pos.x - CELL/2 + 0.4, 0, pos.z); // Flush against West wall
+    group.position.set(pos.x - CELL/2 + 0.4, 0, pos.z);
 
     const top = new THREE.Mesh(new THREE.BoxGeometry(0.75, 0.1, 1.7), woodMatMahogany);
     top.position.y = 0.9;
@@ -1160,7 +1176,7 @@
   function addFurnitureStorage(cellR, cellC, w, d, h, color){
     const pos = cellCenter(cellR, cellC);
     const mesh = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), woodMatMid);
-    mesh.position.set(pos.x, h/2, pos.z + CELL/2 - 0.4); // Against South wall
+    mesh.position.set(pos.x, h/2, pos.z + CELL/2 - 0.4);
     mesh.castShadow = mesh.receiveShadow = true;
     scene.add(mesh);
     registerCollisionBox(pos.x, pos.z + CELL/2 - 0.4, w, d);
@@ -1178,7 +1194,7 @@
     mesh.rotation.x = -Math.PI/2;
     const glow = new THREE.PointLight(0xd4af37, 0.85, 4.0);
     scene.add(mesh, glow);
-    pages.push({ mesh, glow, pos: new THREE.Vector3(), collected: false, note: PAGE_NOTES[i], cellKey: '' });
+    pages.push({ mesh, glow, pos: new THREE.Vector3(), collected: false, cellKey: '' });
   }
 
   let pagesCollected = 0;
@@ -1196,7 +1212,6 @@
       p.glow.position.set(p.pos.x, p.pos.y + 0.25, p.pos.z);
       p.glow.visible = true;
       p.collected = false;
-      p.note = PAGE_NOTES[i];
     });
     pagesCollected = 0;
     document.getElementById('pageCount').textContent = '0 / 3';
@@ -1268,13 +1283,29 @@
 
   randomizeCollectibles();
 
-  // ---------- HIDING SPOTS ----------
-  const hideSpots = HIDE_SPOTS.map(cell => {
-    const pos = cellCenter(cell.r, cell.c);
-    return { pos, radius: 1.6, occupied: false };
-  });
+  // ---------- REFLECTIVE MIRROR JUMPSCARE OBJECT & AUDIOS ----------
+  const mirrorWatcherMesh = new THREE.Group();
+  const shadowMat = new THREE.MeshBasicMaterial({ color: 0x010101, transparent: true, opacity: 0.95 });
+  const shadowEyeMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+  const mTorso = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.32, 1.8, 8), shadowMat);
+  mTorso.position.y = 0.9;
+  const mHead = new THREE.Mesh(new THREE.SphereGeometry(0.26, 10, 10), shadowMat);
+  mHead.position.y = 1.95;
+  const mEyeL = new THREE.Mesh(new THREE.SphereGeometry(0.045, 8, 8), shadowEyeMat);
+  mEyeL.position.set(-0.09, 1.98, 0.22);
+  const mEyeR = new THREE.Mesh(new THREE.SphereGeometry(0.045, 8, 8), shadowEyeMat);
+  mEyeR.position.set(0.09, 1.98, 0.22);
+  mirrorWatcherMesh.add(mTorso, mHead, mEyeL, mEyeR);
+  mirrorWatcherMesh.visible = false;
+  scene.add(mirrorWatcherMesh);
 
-  // ---------- ENTITY: "THE WATCHER" HORROR OVERHAUL ----------
+  let mirrorScareActive = false;
+  let mirrorScareTimer = 0;
+  let scareTriggerYaw = 0;
+  let hidingType = null;
+  const mirrorFlashEl = document.getElementById('mirrorFlash');
+
+  // ---------- ENTITY: "THE WATCHER" ----------
   const skinMat = new THREE.MeshStandardMaterial({ color:0x050505, roughness:0.9, metalness:0.1 });
   const rimMat  = new THREE.MeshBasicMaterial({ color:0x880808, transparent:true, opacity:0.4, side:THREE.BackSide });
   const eyeMat  = new THREE.MeshBasicMaterial({ color:0xff2222 });
@@ -1413,6 +1444,49 @@
     eyeMat.color.setRGB(1.0, 0.15 + closeness*0.3, 0.15);
   }
 
+  // ---------- PAPER NOTE UI OVERLAY MECHANIC ----------
+  let isNoteOpen = false;
+  const noteModal = document.getElementById('noteModal');
+  const noteEyebrow = document.getElementById('noteEyebrow');
+  const noteTitle = document.getElementById('noteTitle');
+  const noteBody = document.getElementById('noteBody');
+  const closeNoteBtn = document.getElementById('closeNoteBtn');
+
+  function openPaperNote(pageIndex){
+    const data = PAGE_NOTES[pageIndex];
+    if (!data) return;
+
+    noteEyebrow.textContent = data.eyebrow;
+    noteTitle.textContent = data.title;
+    noteBody.textContent = data.body;
+
+    isNoteOpen = true;
+    noteModal.classList.remove('hidden');
+    noteModal.classList.add('active');
+
+    // Release mouse cursor so player can click close button or view paper
+    if (document.pointerLockElement) document.exitPointerLock();
+
+    playPageChime();
+  }
+
+  function closePaperNote(){
+    if (!isNoteOpen) return;
+    isNoteOpen = false;
+    noteModal.classList.remove('active');
+    noteModal.classList.add('hidden');
+
+    // Seamlessly return to 1st person gameplay
+    if (gameRunning && !gameOver && !isTouch){
+      renderer.domElement.requestPointerLock();
+    }
+  }
+
+  closeNoteBtn.addEventListener('click', closePaperNote);
+  noteModal.addEventListener('click', (e) => {
+    if (e.target === noteModal) closePaperNote();
+  });
+
   // ---------- PLAYER STATE ----------
   let yaw = 0, pitch = 0;
   const move = { f:false, b:false, l:false, r:false, run:false, crouch:false };
@@ -1430,13 +1504,21 @@
   let crouchLerp = 0;
 
   document.addEventListener('mousemove', (e) => {
-    if (!pointerLocked) return;
+    if (!pointerLocked || isNoteOpen) return;
     yaw -= e.movementX * 0.0022;
     pitch -= e.movementY * 0.0022;
     pitch = Math.max(-Math.PI/2 + 0.05, Math.min(Math.PI/2 - 0.05, pitch));
   });
 
   document.addEventListener('keydown', (e) => {
+    if (isNoteOpen){
+      if (e.code === 'KeyE' || e.code === 'Escape'){
+        e.preventDefault();
+        closePaperNote();
+        return;
+      }
+    }
+
     switch(e.code){
       case 'KeyW': move.f = true; break;
       case 'KeyS': move.b = true; break;
@@ -1446,6 +1528,7 @@
       case 'KeyC': move.crouch = !move.crouch; break;
       case 'KeyF': toggleFlashlight(); break;
       case 'KeyE': tryInteract(); break;
+      case 'Escape': if (isNoteOpen) closePaperNote(); break;
     }
   });
   document.addEventListener('keyup', (e) => {
@@ -1459,7 +1542,7 @@
   });
 
   function toggleFlashlight(){
-    if (battery <= 0) return;
+    if (battery <= 0 || isNoteOpen) return;
     flashlightOn = !flashlightOn;
     playClick();
   }
@@ -1479,6 +1562,7 @@
   const JOY_RADIUS = 45;
 
   function joyStart(e){
+    if (isNoteOpen) return;
     e.preventDefault();
     const t = e.changedTouches[0];
     joyTouchId = t.identifier;
@@ -1515,6 +1599,7 @@
 
   let lookTouchId = null, lastLook = { x:0, y:0 };
   lookLayer.addEventListener('touchstart', (e) => {
+    if (isNoteOpen) return;
     e.preventDefault();
     const t = e.changedTouches[0];
     lookTouchId = t.identifier;
@@ -1522,7 +1607,7 @@
   }, { passive:false });
   document.addEventListener('touchmove', (e) => {
     for (const t of e.changedTouches){
-      if (t.identifier === lookTouchId){
+      if (t.identifier === lookTouchId && !isNoteOpen){
         e.preventDefault();
         const dx = t.clientX - lastLook.x, dy = t.clientY - lastLook.y;
         yaw -= dx * 0.0045;
@@ -1538,10 +1623,12 @@
 
   let touchRunActive = false;
   btnRun.addEventListener('click', () => {
+    if (isNoteOpen) return;
     touchRunActive = !touchRunActive;
     btnRun.classList.toggle('active', touchRunActive);
   });
   btnCrouch.addEventListener('click', () => {
+    if (isNoteOpen) return;
     move.crouch = !move.crouch;
     btnCrouch.classList.toggle('active', move.crouch);
   });
@@ -1581,6 +1668,9 @@
 
   function exitHide(){
     isHiding = false;
+    hidingType = null;
+    document.getElementById('wardrobeOverlay').classList.add('hidden');
+    document.getElementById('bedOverlay').classList.add('hidden');
     move.crouch = false;
     if (isTouch) btnCrouch.classList.remove('active');
     crouchLerp = 0;
@@ -1619,15 +1709,6 @@
     hideExitCooldown = 0.75;
   }
 
-  // ---------- STORY / NOTE DISPLAY ----------
-  const noteDiv = document.getElementById('noteText');
-  function showNote(text){
-    noteDiv.textContent = text;
-    noteDiv.classList.add('visible');
-    clearTimeout(showNote._t);
-    showNote._t = setTimeout(() => { noteDiv.classList.remove('visible'); }, 6000);
-  }
-
   const whisperDiv = document.getElementById('whisperText');
   function showWhisper(){
     if (!entityActive) return;
@@ -1652,6 +1733,11 @@
   function tryInteract(){
     if (!gameRunning) return;
 
+    if (isNoteOpen){
+      closePaperNote();
+      return;
+    }
+
     if (isHiding){
       exitHide();
       return;
@@ -1667,20 +1753,31 @@
         p.glow.visible = false;
         pagesCollected++;
         document.getElementById('pageCount').textContent = pagesCollected + ' / 3';
-        requestAnimationFrame(() => {
-          showNote(p.note);
-          playPageChime();
-        });
 
-        // Trigger MONSTER CHASE IMMEDIATELY ON 2ND PAGE!
+        // POP UP FULLSCREEN AGED PARCHMENT PAPER NOTE OVERLAY
+        openPaperNote(pagesCollected - 1);
+
+        // Trigger MONSTER CHASE & PERMANENT AMBIENT LIGHT EXTINCTION ON 2ND PAGE!
         if (pagesCollected === 2){
           playStinger();
-          showToast("PAGE 2 COLLECTED — SOMETHING AWOKE AND IS HUNTING YOU!");
+          showToast("PAGE 2 COLLECTED — LIGHTS EXTINGUISHED & THE WATCHER IS HUNTING!");
           entityGroup.visible = true;
           entityActive = true;
           entityState = 'hunting';
           lastKnownPlayerPos = camera.position.clone();
           showWhisper();
+
+          ambientExtinguished = true;
+          ambientLight.intensity = 0.08;
+          lamps.forEach(l => {
+            l.light.intensity = 0;
+            if (l.bulb) l.bulb.material.color.setHex(0x151210);
+          });
+          candleLights.forEach(c => {
+            c.light.intensity = 0;
+            if (c.flame) c.flame.visible = false;
+          });
+
           for (const d of doors){
             if (Math.hypot(d.center.x-entityGroup.position.x, d.center.z-entityGroup.position.z) < CELL*2.5) d.slammed = true;
           }
@@ -1736,12 +1833,21 @@
       if (d < spot.radius){
         preHidePos = camera.position.clone();
         isHiding = true;
+        hidingType = spot.type;
         hidingSpot = spot;
         spot.occupied = true;
         move.crouch = true;
         if (isTouch) btnCrouch.classList.add('active');
-        camera.position.x = spot.pos.x;
-        camera.position.z = spot.pos.z;
+
+        if (spot.type === 'bed'){
+          camera.position.set(spot.pos.x, 0.38, spot.pos.z);
+          document.getElementById('bedOverlay').classList.remove('hidden');
+          showToast("HIDING UNDER THE BED — STAY STILL!");
+        } else {
+          camera.position.set(spot.pos.x, 1.35, spot.pos.z);
+          document.getElementById('wardrobeOverlay').classList.remove('hidden');
+          showToast("HIDING INSIDE WARDROBE — STAY STILL!");
+        }
         return;
       }
     }
@@ -1801,6 +1907,19 @@
     exitDoorPivotR.rotation.y = 0;
     exitLight.intensity = 0;
 
+    ambientExtinguished = false;
+    ambientLight.intensity = 0.78;
+    lamps.forEach(l => {
+      l.light.intensity = l.base;
+      if (l.bulb) l.bulb.material.color.setHex(0xffdfaa);
+    });
+    candleLights.forEach(c => {
+      c.light.intensity = c.baseIntensity;
+      if (c.flame) c.flame.visible = true;
+    });
+    mirrors.forEach(m => m.triggered = false);
+    doors.forEach(d => { d.slammed = false; d.creptOpen = false; d.lastDist = null; });
+
     entityGroup.visible = false;
     entityActive = false;
     entityState = 'idle';
@@ -1839,7 +1958,7 @@
 
   document.addEventListener('pointerlockchange', () => {
     pointerLocked = document.pointerLockElement === renderer.domElement;
-    if (pointerLocked) startGame();
+    if (pointerLocked && !isNoteOpen) startGame();
   });
 
   // ---------- PROCEDURAL AUDIO DESIGN ----------
@@ -1923,6 +2042,50 @@
     osc.start(); osc.stop(audioCtx.currentTime + 0.9);
   }
 
+  function playDoorCreak(){
+    if (!audioCtx) return;
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(85, audioCtx.currentTime);
+    osc.frequency.linearRampToValueAtTime(145, audioCtx.currentTime + 0.6);
+    gain.gain.setValueAtTime(0.001, audioCtx.currentTime);
+    gain.gain.linearRampToValueAtTime(0.08, audioCtx.currentTime + 0.08);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.65);
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.start(); osc.stop(audioCtx.currentTime + 0.7);
+  }
+
+  function playDoorSlam(){
+    if (!audioCtx) return;
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(65, audioCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(20, audioCtx.currentTime + 0.25);
+    gain.gain.setValueAtTime(0.35, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.start(); osc.stop(audioCtx.currentTime + 0.32);
+  }
+
+  function playMirrorStinger(){
+    if (!audioCtx) return;
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(320, audioCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(30, audioCtx.currentTime + 0.55);
+    gain.gain.setValueAtTime(0.001, audioCtx.currentTime);
+    gain.gain.linearRampToValueAtTime(0.45, audioCtx.currentTime + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.6);
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.start(); osc.stop(audioCtx.currentTime + 0.65);
+  }
+
   function playFootstep(surface){
     if (!audioCtx) return;
     const osc = audioCtx.createOscillator();
@@ -1999,6 +2162,7 @@
     gameRunning = false;
     if (document.pointerLockElement) document.exitPointerLock();
     touchControlsEl.classList.remove('active');
+    if (isNoteOpen) closePaperNote();
     playStinger();
     renderJumpscareGraphic();
     jumpscareText.textContent = caughtWhileHiding
@@ -2012,6 +2176,7 @@
     gameRunning = false;
     if (document.pointerLockElement) document.exitPointerLock();
     touchControlsEl.classList.remove('active');
+    if (isNoteOpen) closePaperNote();
     const secs = Math.floor((performance.now()-startTime)/1000);
     document.getElementById('winTime').textContent = `Chapter One survived in ${secs} seconds.`;
     winScreen.classList.remove('hidden');
@@ -2049,6 +2214,20 @@
     requestAnimationFrame(animate);
     const dt = Math.min(clock.getDelta(), 0.1);
 
+    // FIX: when the parchment note overlay is open, stop updating AND stop
+    // re-rendering the 3D scene entirely. Previously the full render loop
+    // (physics, entity AI, lighting flicker, particle updates, and a fresh
+    // WebGL render) kept running every frame underneath the note's
+    // fullscreen backdrop-filter blur. The browser has to recompute that
+    // blur over a live-updating canvas 60x/sec, which is the real source
+    // of the lag/stutter you feel right when a page is picked up. Since
+    // nothing needs to visibly change while you're just reading the note,
+    // we simply skip the frame — the last rendered frame stays on the
+    // canvas and only needs to be blurred once.
+    if (isNoteOpen){
+      return;
+    }
+
     if (clockPendulum) {
       clockPendulum.rotation.z = Math.sin(performance.now()*0.0025) * 0.25;
     }
@@ -2058,9 +2237,11 @@
 
       if (hideExitCooldown > 0) hideExitCooldown -= dt;
 
-      camera.rotation.order = 'YXZ';
-      camera.rotation.y = yaw;
-      camera.rotation.x = isHiding ? pitch*0.4 : pitch;
+      if (!isNoteOpen){
+        camera.rotation.order = 'YXZ';
+        camera.rotation.y = yaw;
+        camera.rotation.x = isHiding ? pitch*0.4 : pitch;
+      }
 
       const crouchTarget = move.crouch ? 1 : 0;
       crouchLerp += (crouchTarget - crouchLerp) * Math.min(1, dt*8);
@@ -2069,7 +2250,7 @@
       let moving = false;
       let surfaceNoisy = false;
 
-      if (!isHiding){
+      if (!isHiding && !isNoteOpen){
         const forwardInput = Math.max(-1, Math.min(1, ((move.f?1:0)-(move.b?1:0)) + joyVec.y));
         const strafeInput  = Math.max(-1, Math.min(1, ((move.r?1:0)-(move.l?1:0)) + joyVec.x));
         const inputMag = Math.min(1, Math.hypot(forwardInput, strafeInput));
@@ -2092,7 +2273,6 @@
         if (!collides(nx, camera.position.z)) camera.position.x = nx;
         if (!collides(camera.position.x, nz)) camera.position.z = nz;
 
-        // REDUCED STAMINA DRAIN (dt * 8.5 instead of dt * 22 for longer sprint time!)
         if (runWanted && moving){
           stamina -= dt*8.5;
           if (stamina <= 0){ stamina = 0; staminaExhausted = true; }
@@ -2122,7 +2302,7 @@
         const bobY = Math.sin(bobPhase)*0.045*(moving?1:0);
         camera.position.y = targetEyeHeight + bobY;
       } else {
-        camera.position.y = targetEyeHeight - 0.3;
+        camera.position.y = targetEyeHeight - (isHiding ? 0.3 : 0);
       }
 
       flashlight.position.set(camera.position.x, camera.position.y+0.2, camera.position.z);
@@ -2143,7 +2323,7 @@
       }
       flashlight.intensity = (flashlightOn && !isHiding && battery > 0) ? Math.max(0.15, (battery/100))*2.8*flickerMod : 0;
 
-      if (flashlightOn && battery > 0 && !isHiding){
+      if (flashlightOn && battery > 0 && !isHiding && !isNoteOpen){
         battery -= dt*1.0*cfg.batteryDrain;
         if (battery < 0) battery = 0;
         if (battery === 0) flashlightOn = false;
@@ -2188,67 +2368,168 @@
       if (distToExit < 2.8) nearExit = true;
 
       let nearHide = false;
+      let nearHideSpot = null;
       if (!isHiding){
         for (const spot of hideSpots){
           if (spot.occupied) continue;
           const d = Math.hypot(camera.position.x-spot.pos.x, camera.position.z-spot.pos.z);
-          if (d < spot.radius) nearHide = true;
+          if (d < spot.radius){
+            nearHide = true;
+            nearHideSpot = spot;
+            break;
+          }
         }
       }
 
-      if (nearExit){
-        pickupPromptEl.textContent = pagesCollected === 3 ? '[ E ] ESCAPE HOUSE' : '[ E ] EXIT (CHAINED SHUT)';
-        pickupPromptEl.classList.add('show');
-      } else if (nearPage) {
-        pickupPromptEl.textContent = '[ E ] PICK UP PAGE';
-        pickupPromptEl.classList.add('show');
-      } else if (nearBattery) {
-        pickupPromptEl.textContent = '[ E ] PICK UP BATTERY';
-        pickupPromptEl.classList.add('show');
+      if (!isNoteOpen){
+        if (nearExit){
+          pickupPromptEl.textContent = pagesCollected === 3 ? '[ E ] ESCAPE HOUSE' : '[ E ] EXIT (CHAINED SHUT)';
+          pickupPromptEl.classList.add('show');
+        } else if (nearPage) {
+          pickupPromptEl.textContent = '[ E ] PICK UP PAGE';
+          pickupPromptEl.classList.add('show');
+        } else if (nearBattery) {
+          pickupPromptEl.textContent = '[ E ] PICK UP BATTERY';
+          pickupPromptEl.classList.add('show');
+        } else {
+          pickupPromptEl.classList.remove('show');
+        }
+
+        if (isHiding){
+          interactHintEl.textContent = hidingType === 'bed' ? '[ E ] EXIT UNDER BED' : '[ E ] EXIT WARDROBE';
+          interactHintEl.classList.add('show');
+        } else if (nearHide){
+          interactHintEl.textContent = nearHideSpot ? ('[ E ] HIDE (' + nearHideSpot.label + ')') : '[ E ] HIDE';
+          interactHintEl.classList.add('show');
+        } else {
+          interactHintEl.classList.remove('show');
+        }
       } else {
         pickupPromptEl.classList.remove('show');
-      }
-
-      if (isHiding){
-        interactHintEl.textContent = '[ E ] STOP HIDING';
-        interactHintEl.classList.add('show');
-      } else if (nearHide){
-        interactHintEl.textContent = '[ E ] HIDE';
-        interactHintEl.classList.add('show');
-      } else {
         interactHintEl.classList.remove('show');
       }
 
+      // Volumetric flashlight dust beam particles update
       const mp = motes.geometry.attributes.position.array;
+      const mc = motes.geometry.attributes.color.array;
+      const flashPos = flashlight.position;
+      const flashDir = new THREE.Vector3(0, 0, -1).applyEuler(camera.rotation).normalize();
+      const coneCos = Math.cos(flashlight.angle * 1.05);
+
       for (let i=0; i<MOTE_COUNT; i++){
         const s = moteSpeed[i];
         s.phase += dt*0.4;
         mp[i*3]   += Math.sin(s.phase)*0.0015;
-        mp[i*3+1] += s.vy*dt*0.3;
+        mp[i*3+1] += s.vy*dt*0.35;
         mp[i*3+2] += Math.cos(s.phase*0.7)*0.0015;
-        if (mp[i*3+1] > WALL_H) mp[i*3+1] = 0;
+        if (mp[i*3+1] > WALL_H) mp[i*3+1] = 0.1;
+
+        let r = 0.05, g = 0.04, b = 0.03;
+        if (flashlightOn && battery > 0 && !isHiding && !isNoteOpen){
+          const dx = mp[i*3] - flashPos.x;
+          const dy = mp[i*3+1] - flashPos.y;
+          const dz = mp[i*3+2] - flashPos.z;
+          const dist = Math.hypot(dx, dy, dz);
+          if (dist > 0.3 && dist < flashlight.distance){
+            const dot = (dx*flashDir.x + dy*flashDir.y + dz*flashDir.z) / dist;
+            if (dot > coneCos){
+              const distFactor = 1.0 - (dist / flashlight.distance);
+              const coneFactor = (dot - coneCos) / (1.0 - coneCos);
+              const intensity = Math.pow(distFactor * coneFactor, 0.6) * 1.8;
+              r = Math.min(1.0, 0.1 + 0.9*intensity);
+              g = Math.min(1.0, 0.08 + 0.8*intensity);
+              b = Math.min(1.0, 0.05 + 0.55*intensity);
+            }
+          }
+        }
+        mc[i*3]   = r;
+        mc[i*3+1] = g;
+        mc[i*3+2] = b;
       }
       motes.geometry.attributes.position.needsUpdate = true;
+      motes.geometry.attributes.color.needsUpdate = true;
 
       if (Math.random() < 0.3) drawTvStatic();
 
+      // Dynamic door creak & slam mechanics
       for (const d of doors){
         const distP = Math.hypot(camera.position.x-d.center.x, camera.position.z-d.center.z);
-        const wantOpen = distP < d.triggerR || d.slammed;
-        const target = wantOpen ? d.openY : d.closedY;
-        d.pivot.rotation.y += (target - d.pivot.rotation.y) * Math.min(1, dt * (d.slammed?9:2.2));
+
+        if (!d.creptOpen && distP < 4.2 && !d.slammed){
+          d.creptOpen = true;
+          d.openY = (Math.PI * 0.42) * (Math.random() < 0.5 ? 1 : -1);
+          playDoorCreak();
+        }
+
+        if (d.lastDist && d.lastDist < 1.3 && distP >= 1.6 && !d.slammed && Math.random() < 0.22){
+          d.slammed = true;
+          playDoorSlam();
+        }
+        d.lastDist = distP;
+
+        const wantOpen = distP < d.triggerR || (d.creptOpen && !d.slammed);
+        const target = d.slammed ? d.closedY : (wantOpen ? d.openY : d.closedY);
+        d.pivot.rotation.y += (target - d.pivot.rotation.y) * Math.min(1, dt * (d.slammed?12:2.5));
       }
 
-      for (const l of lamps){
-        l.flickerPhase += dt;
-        if (l.willDie && l.deadUntil <= 0 && Math.random() < 0.0025){
-          l.deadUntil = 0.3 + Math.random()*1.2;
+      // Ambient lamp flickering & extinction
+      if (ambientExtinguished){
+        for (const l of lamps) l.light.intensity = 0;
+        for (const c of candleLights) c.light.intensity = 0;
+      } else {
+        for (const l of lamps){
+          l.flickerPhase += dt * (4 + Math.random()*8);
+          if (l.willDie && l.deadUntil <= 0 && Math.random() < 0.003){
+            l.deadUntil = 0.2 + Math.random()*1.0;
+          }
+          if (l.deadUntil > 0){
+            l.deadUntil -= dt;
+            l.light.intensity = l.base * 0.04;
+          } else {
+            const flicker = Math.sin(l.flickerPhase) > 0.9 ? 0.2 : (0.85 + Math.random()*0.15);
+            l.light.intensity = l.base * flicker;
+          }
         }
-        if (l.deadUntil > 0){
-          l.deadUntil -= dt;
-          l.light.intensity = l.base * 0.05;
-        } else {
-          l.light.intensity = l.base * (0.85 + Math.random()*0.15);
+      }
+
+      // Reflective mirror jumpscare check
+      if (!isHiding && !isNoteOpen && !gameOver){
+        const camPos = camera.position;
+        const camDir = new THREE.Vector3(0, 0, -1).applyEuler(camera.rotation).normalize();
+
+        for (const m of mirrors){
+          if (m.triggered) continue;
+          const distToMirror = camPos.distanceTo(m.pos);
+          if (distToMirror < 2.5){
+            const toMirror = m.pos.clone().sub(camPos).normalize();
+            const lookDot = camDir.dot(toMirror);
+            if (lookDot > 0.72){ // Player looking directly into mirror
+              m.triggered = true;
+              mirrorScareActive = true;
+              mirrorScareTimer = 0.7;
+              scareTriggerYaw = yaw;
+
+              const behindPos = camPos.clone().sub(camDir.clone().multiplyScalar(1.2));
+              behindPos.y = 0;
+              mirrorWatcherMesh.position.copy(behindPos);
+              mirrorWatcherMesh.lookAt(camPos.x, 1.5, camPos.z);
+              mirrorWatcherMesh.visible = true;
+
+              if (mirrorFlashEl) mirrorFlashEl.classList.add('active');
+              playMirrorStinger();
+              break;
+            }
+          }
+        }
+
+        if (mirrorScareActive){
+          mirrorScareTimer -= dt;
+          const yawDiff = Math.abs(yaw - scareTriggerYaw);
+          if (mirrorScareTimer <= 0 || yawDiff > 0.45){
+            mirrorScareActive = false;
+            mirrorWatcherMesh.visible = false;
+            if (mirrorFlashEl) mirrorFlashEl.classList.remove('active');
+          }
         }
       }
 
@@ -2298,7 +2579,7 @@
           const distTarget = Math.hypot(toPx, toPz);
           if (distTarget > 0.2){
             const nx2 = toPx/distTarget, nz2 = toPz/distTarget;
-            const stateSpeedMult = entityState==='hunting' ? 1.35 : entityState==='searching' ? 0.9 : 0.6;
+            const stateSpeedMult = entityState==='hunting' ? (isNoteOpen ? 0.4 : 1.35) : entityState==='searching' ? 0.9 : 0.6;
             const moveDist = entityBaseSpeed * cfg.entitySpeedMult * stateSpeedMult * dt;
             curEntSpeed = moveDist/dt;
             const tryX = ex + nx2*moveDist, tryZ = ez + nz2*moveDist;
@@ -2325,9 +2606,9 @@
           showWhisper();
         }
 
-        if (!isHiding && dist < 1.15){
+        if (!isHiding && dist < 1.15 && !isNoteOpen){
           triggerJumpscare(false);
-        } else if (isHiding && dist < 1.4 && moving){
+        } else if (isHiding && dist < 1.4 && moving && !isNoteOpen){
           triggerJumpscare(true);
         }
       }
