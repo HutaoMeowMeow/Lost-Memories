@@ -12,23 +12,86 @@
 
   <link rel="stylesheet" href="style.css">
 </head>
-<body>
+<body class="menu-active">
 
-<div id="overlay">
-  <div class="eyebrow">HOLLOWGROUND</div>
-  <h1>DAY 1</h1>
-  <p class="subtitle">THE INVITATION</p>
-  <p>You followed an invitation nobody sent, up the porch steps of a windowless Victorian house lost to decay.</p>
-  <p>The heavy front doors slammed shut behind you—chained from the outside. Something inside is breathing in the dark.</p>
-  <p>Find the 3 hidden journal pages scattered across the house to break the chains and unlock the main exit.</p>
-  <p id="controlsHint">WASD Move &nbsp;·&nbsp; MOUSE Look &nbsp;·&nbsp; F Flashlight &nbsp;·&nbsp; SHIFT Run &nbsp;·&nbsp; E Interact / Hide &nbsp;·&nbsp; C Crouch</p>
-  
-  <div id="difficultyRow">
-    <button class="diff-btn" data-diff="calm">CALM</button>
-    <button class="diff-btn selected" data-diff="normal">NORMAL</button>
-    <button class="diff-btn" data-diff="nightmare">NIGHTMARE</button>
+<!-- LOADING SCREEN -->
+<div id="loadingScreen">
+  <div class="load-vignette"></div>
+  <div class="load-content">
+    <div class="load-eyebrow">HOLLOWGROUND</div>
+    <h1 class="load-title">THE INVITATION</h1>
+    <div class="load-bar-wrap">
+      <div class="load-bar"><div id="loadBarFill"></div></div>
+      <span id="loadPercent">0%</span>
+    </div>
+    <p id="loadStatus">Something is waking up...</p>
+    <div class="load-flicker"></div>
   </div>
-  <button class="start-btn" id="startBtn">ENTER THE HOUSE</button>
+</div>
+
+<!-- MAIN MENU -->
+<div id="mainMenu" class="hidden">
+  <div class="menu-vignette"></div>
+  <div class="menu-content">
+    <div class="menu-eyebrow">CHAPTER ONE</div>
+    <h1 class="menu-title">HOLLOWGROUND</h1>
+    <p class="menu-tagline">Day 1 — The Invitation</p>
+    <nav class="menu-nav">
+      <button class="menu-btn primary" id="menuStart">START</button>
+      <button class="menu-btn" id="menuSettings">SETTINGS</button>
+      <button class="menu-btn danger" id="menuExit">EXIT</button>
+    </nav>
+    <p class="menu-footer">They already know you're here.</p>
+  </div>
+</div>
+
+<!-- SETTINGS -->
+<div id="settingsPanel" class="hidden">
+  <div class="menu-vignette"></div>
+  <div class="settings-content">
+    <div class="settings-header">
+      <button class="back-btn" id="settingsBack">&larr; BACK</button>
+      <h2>SETTINGS</h2>
+    </div>
+    <div class="setting-row">
+      <label for="settingVolume">Master Volume</label>
+      <input type="range" id="settingVolume" min="0" max="100" value="70">
+      <span id="settingVolumeVal">70%</span>
+    </div>
+    <div class="setting-row">
+      <label for="settingSensitivity">Mouse Sensitivity</label>
+      <input type="range" id="settingSensitivity" min="1" max="10" value="5">
+      <span id="settingSensitivityVal">5</span>
+    </div>
+    <div class="setting-row">
+      <label for="settingBrightness">Brightness</label>
+      <input type="range" id="settingBrightness" min="50" max="120" value="100">
+      <span id="settingBrightnessVal">100%</span>
+    </div>
+  </div>
+</div>
+
+<!-- MODE SELECT (Start flow) -->
+<div id="modeSelect" class="hidden">
+  <div class="menu-vignette"></div>
+  <div class="mode-content">
+    <button class="back-btn" id="modeBack">&larr; BACK</button>
+    <div class="eyebrow">HOLLOWGROUND</div>
+    <h1>DAY 1</h1>
+    <p class="subtitle">THE INVITATION</p>
+    <p>You followed an invitation nobody sent, up the porch steps of a windowless Victorian house lost to decay.</p>
+    <p>The heavy front doors slammed shut behind you—chained from the outside. Something inside is breathing in the dark.</p>
+    <p>Find the 3 hidden journal pages scattered across the house to break the chains and unlock the main exit.</p>
+    <p id="controlsHint">WASD Move &nbsp;·&nbsp; MOUSE Look &nbsp;·&nbsp; F Flashlight &nbsp;·&nbsp; SHIFT Run &nbsp;·&nbsp; E Interact / Hide &nbsp;·&nbsp; C Crouch</p>
+
+    <p class="mode-label">CHOOSE YOUR FATE</p>
+    <div id="difficultyRow">
+      <button class="diff-btn" data-diff="calm">CALM</button>
+      <button class="diff-btn selected" data-diff="normal">NORMAL</button>
+      <button class="diff-btn" data-diff="nightmare">NIGHTMARE</button>
+    </div>
+    <button class="start-btn" id="startBtn">ENTER THE HOUSE</button>
+  </div>
 </div>
 
 <div id="chapterCard" class="hidden">
@@ -80,8 +143,8 @@
   <div class="eyebrow">CHAPTER ONE — ESCAPED</div>
   <h1>YOU BROKE THE CHAINS</h1>
   <p id="winTime"></p>
-  <p>You burst into the cold night air as the heavy oak doors slam shut behind you. Somewhere in the house, a low guttural screech echoes into the darkness...</p>
-  <p class="teaser">DAY 2: THE ORCHARD — COMING SOON</p>
+  <p id="winBody">You burst into the cold night air as the heavy oak doors slam shut behind you. Somewhere in the house, a low guttural screech echoes into the darkness...</p>
+  <p class="teaser">DAY 2: THE WHISPERING PINES — COMING SOON</p>
   <button class="again-btn" id="againBtn">PLAY AGAIN</button>
 </div>
 
@@ -95,7 +158,7 @@
 <div id="breathFog"></div>
 <canvas id="staticNoise"></canvas>
 
-<div id="objective">PAGES <span class="count" id="pageCount">0 / 3</span></div>
+<div id="objective"><span id="objectiveText">PAGES</span> <span class="count" id="pageCount">0 / 3</span></div>
 <div id="roomLabel"><span id="roomLabelText">ENTRY HALL</span></div>
 
 <div id="hud">
@@ -122,10 +185,8 @@
   </div>
 </div>
 
-<!-- Three.js & Loaders -->
+<!-- Three.js -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/DRACOLoader.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 
 <!-- Main Game Script -->
 <script src="script.js"></script>

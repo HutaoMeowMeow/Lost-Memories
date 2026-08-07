@@ -50,12 +50,12 @@ canvas {
   position: fixed;
   top: 50%;
   left: 50%;
-  width: 4px;
-  height: 4px;
-  margin: -2px 0 0 -2px;
+  width: 3px;
+  height: 3px;
+  margin: -1.5px 0 0 -1.5px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.7);
-  box-shadow: 0 0 8px rgba(255, 255, 255, 0.9), 0 0 2px #000;
+  background: rgba(180, 170, 160, 0.45);
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.9);
   pointer-events: none;
   z-index: 5;
   transition: transform 0.1s ease;
@@ -66,8 +66,16 @@ canvas {
   inset: 0;
   pointer-events: none;
   z-index: 4;
-  background: radial-gradient(circle, rgba(0,0,0,0) 40%, rgba(0,0,0,0.85) 80%, rgba(0,0,0,0.99) 100%);
-  box-shadow: inset 0 0 180px 80px rgba(0, 0, 0, 0.98);
+  background: radial-gradient(circle, rgba(0,0,0,0) 25%, rgba(0,0,0,0.92) 75%, rgba(0,0,0,1) 100%);
+  box-shadow: inset 0 0 220px 100px rgba(0, 0, 0, 0.99);
+}
+
+#vignette::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center, rgba(80, 0, 0, 0.08) 0%, rgba(0, 0, 0, 0.4) 100%);
+  pointer-events: none;
 }
 
 #fear {
@@ -75,10 +83,10 @@ canvas {
   inset: 0;
   pointer-events: none;
   z-index: 6;
-  background: radial-gradient(circle, rgba(160, 0, 0, 0) 30%, rgba(180, 0, 0, 0.75) 100%);
+  background: radial-gradient(circle, rgba(120, 0, 0, 0) 20%, rgba(140, 0, 0, 0.85) 100%);
   opacity: 0;
-  transition: opacity 0.25s ease;
-  mix-blend-mode: color-burn;
+  transition: opacity 0.2s ease;
+  mix-blend-mode: multiply;
 }
 
 #breathFog {
@@ -96,9 +104,9 @@ canvas {
   inset: 0;
   pointer-events: none;
   z-index: 9;
-  opacity: 0;
+  opacity: 0.04;
   mix-blend-mode: overlay;
-  transition: opacity 0.1s ease;
+  transition: opacity 0.15s ease;
 }
 
 /* ---------- HIDING SPOT OVERLAYS ---------- */
@@ -487,39 +495,361 @@ canvas {
 #whisperText {
   position: fixed;
   bottom: 22%;
-  left: 50%;
-  transform: translate(-50%, 0);
+  left: 0;
+  right: 0;
+  width: 100%;
+  text-align: center;
   z-index: 8;
-  color: #b81414;
+  color: #ff4444;
   font-family: var(--font-mono);
   font-size: 14px;
   letter-spacing: 5px;
+  padding-right: 5px;
   opacity: 0;
   transition: opacity 1.2s ease;
   pointer-events: none;
-  text-shadow: 0 0 15px rgba(184, 20, 20, 0.9), 0 0 30px #000;
+  text-shadow: 0 0 15px rgba(184, 20, 20, 0.9), 0 0 30px #000, 0 2px 8px rgba(0, 0, 0, 0.95);
   text-transform: lowercase;
   font-weight: 700;
 }
 
-/* ---------- INTRO OVERLAY & SCREENS ---------- */
-#overlay {
+/* ---------- HIDE IN-GAME UI DURING MENUS ---------- */
+body.menu-active #hud,
+body.menu-active #objective,
+body.menu-active #roomLabel,
+body.menu-active #crosshair,
+body.menu-active #pickupPrompt,
+body.menu-active #interactHint {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* ---------- LOADING SCREEN ---------- */
+#loadingScreen {
   position: fixed;
   inset: 0;
-  z-index: 20;
+  z-index: 50;
   display: flex;
   align-items: center;
   justify-content: center;
-  flex-direction: column;
+  background: #020101;
+  transition: opacity 0.9s ease;
+}
+
+#loadingScreen.fade-out {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.load-vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle, rgba(0,0,0,0) 20%, rgba(0,0,0,0.95) 80%);
+  pointer-events: none;
+}
+
+.load-content {
+  position: relative;
   text-align: center;
-  background: radial-gradient(circle at center, #180909 0%, #030202 100%);
+  z-index: 2;
+  padding: 24px;
+}
+
+.load-eyebrow {
+  font-family: var(--font-title);
+  letter-spacing: 14px;
+  color: var(--color-accent-crimson);
+  font-size: 13px;
+  font-weight: 700;
+  text-shadow: 0 0 20px var(--color-accent-glow);
+  animation: loadPulse 2.4s ease-in-out infinite;
+}
+
+.load-title {
+  font-family: var(--font-title);
+  font-size: 42px;
+  letter-spacing: 12px;
+  color: #c9c9c9;
+  margin: 16px 0 36px;
+  text-shadow: 0 0 30px rgba(180, 20, 20, 0.4);
+}
+
+.load-bar-wrap {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  justify-content: center;
+  margin-bottom: 18px;
+}
+
+.load-bar {
+  width: min(340px, 70vw);
+  height: 4px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 2px;
+  overflow: hidden;
+  border: 1px solid rgba(184, 20, 20, 0.25);
+}
+
+#loadBarFill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #5c0a0a, #b81414, #dc2626);
+  box-shadow: 0 0 12px rgba(184, 20, 20, 0.8);
+  transition: width 0.15s ease;
+}
+
+#loadPercent {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-text-muted);
+  letter-spacing: 2px;
+  min-width: 36px;
+}
+
+#loadStatus {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: #6a5a50;
+  letter-spacing: 2px;
+  min-height: 20px;
+}
+
+.load-flicker {
+  position: absolute;
+  inset: -100px;
+  background: rgba(184, 20, 20, 0.03);
+  animation: loadFlicker 3.5s steps(1) infinite;
+  pointer-events: none;
+}
+
+@keyframes loadPulse {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 1; }
+}
+
+@keyframes loadFlicker {
+  0%, 92%, 100% { opacity: 0; }
+  93% { opacity: 1; }
+  94% { opacity: 0; }
+  96% { opacity: 0.6; }
+}
+
+/* ---------- MAIN MENU ---------- */
+#mainMenu, #settingsPanel, #modeSelect {
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at center, #140808 0%, #030202 100%);
   color: var(--color-text-main);
-  padding: 32px;
+}
+
+.menu-vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle, rgba(0,0,0,0) 30%, rgba(0,0,0,0.92) 100%);
+  pointer-events: none;
+}
+
+.menu-content, .mode-content, .settings-content {
+  position: relative;
+  z-index: 2;
+  text-align: center;
+  padding: 32px 24px;
+  max-width: 640px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.menu-eyebrow {
+  font-family: var(--font-title);
+  letter-spacing: 10px;
+  padding-right: 10px; /* optical center with letter-spacing */
+  color: var(--color-accent-crimson);
+  font-size: 13px;
+  margin-bottom: 10px;
+}
+
+.menu-title {
+  font-family: var(--font-title);
+  font-size: 72px;
+  letter-spacing: 20px;
+  padding-right: 20px; /* optical center with letter-spacing */
+  color: #d32f2f;
+  text-shadow: 0 0 50px rgba(211, 47, 47, 0.6), 0 0 100px rgba(211, 47, 47, 0.2);
+  font-weight: 900;
+  margin-bottom: 6px;
+}
+
+.menu-tagline {
+  font-family: var(--font-title);
+  letter-spacing: 6px;
+  padding-right: 6px; /* optical center with letter-spacing */
+  color: var(--color-accent-amber);
+  font-size: 13px;
+  margin-bottom: 48px;
+}
+
+.menu-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  align-items: center;
+}
+
+.menu-btn {
+  width: min(280px, 80vw);
+  padding: 16px 32px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: var(--color-text-main);
+  font-family: var(--font-title);
+  font-size: 16px;
+  letter-spacing: 5px;
+  font-weight: 700;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.25s ease;
+}
+
+.menu-btn:hover {
+  border-color: rgba(255, 255, 255, 0.45);
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 0 25px rgba(255, 255, 255, 0.08);
+}
+
+.menu-btn.primary {
+  background: rgba(184, 20, 20, 0.2);
+  border-color: var(--color-accent-crimson);
+  color: #f3dada;
+  box-shadow: 0 0 30px rgba(184, 20, 20, 0.3);
+}
+
+.menu-btn.primary:hover {
+  background: var(--color-accent-crimson);
+  color: #fff;
+  box-shadow: 0 0 50px rgba(184, 20, 20, 0.7);
+}
+
+.menu-btn.danger:hover {
+  border-color: #991b1b;
+  color: #fca5a5;
+  box-shadow: 0 0 20px rgba(153, 27, 27, 0.4);
+}
+
+.menu-footer {
+  margin-top: 40px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 3px;
+  color: #4a3a35;
+  font-style: italic;
+}
+
+/* ---------- SETTINGS PANEL ---------- */
+.settings-content {
+  text-align: left;
+  width: min(420px, 90vw);
+  align-items: stretch;
+}
+
+.settings-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+.settings-header h2 {
+  font-family: var(--font-title);
+  letter-spacing: 6px;
+  color: var(--color-text-main);
+  font-size: 22px;
+}
+
+.setting-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-rows: auto auto;
+  gap: 8px 12px;
+  margin-bottom: 24px;
+  align-items: center;
+}
+
+.setting-row label {
+  grid-column: 1 / -1;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+}
+
+.setting-row input[type="range"] {
+  grid-column: 1;
+  width: 100%;
+  accent-color: var(--color-accent-crimson);
+  cursor: pointer;
+}
+
+.setting-row span {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--color-accent-amber);
+  min-width: 40px;
+  text-align: right;
+}
+
+.back-btn {
+  padding: 8px 16px;
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.15);
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 2px;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.back-btn:hover {
+  border-color: rgba(255,255,255,0.4);
+  color: var(--color-text-main);
+}
+
+/* ---------- MODE SELECT SCREEN ---------- */
+#modeSelect {
   overflow-y: auto;
 }
 
-#overlay .eyebrow {
+.mode-content {
+  max-width: 580px;
+}
+
+.mode-content .back-btn {
+  position: absolute;
+  top: 24px;
+  left: 24px;
+}
+
+.mode-label {
+  margin-top: 28px !important;
+  font-family: var(--font-title) !important;
+  letter-spacing: 5px !important;
+  padding-right: 5px !important; /* optical center with letter-spacing */
+  color: var(--color-accent-crimson) !important;
+  font-size: 12px !important;
+}
+
+#modeSelect .eyebrow {
   letter-spacing: 12px;
+  padding-right: 12px; /* optical center with letter-spacing */
   color: var(--color-accent-crimson);
   font-family: var(--font-title);
   font-size: 14px;
@@ -528,30 +858,33 @@ canvas {
   text-shadow: 0 0 15px var(--color-accent-glow);
 }
 
-#overlay h1 {
+#modeSelect h1 {
   font-family: var(--font-title);
   font-size: 64px;
   letter-spacing: 18px;
+  padding-right: 18px; /* optical center with letter-spacing */
   color: #d32f2f;
   text-shadow: 0 0 40px rgba(211, 47, 47, 0.7), 0 0 80px rgba(211, 47, 47, 0.3);
   font-weight: 900;
   margin-bottom: 8px;
 }
 
-#overlay .subtitle {
+#modeSelect .subtitle {
   font-family: var(--font-title);
   letter-spacing: 8px;
+  padding-right: 8px; /* optical center with letter-spacing */
   color: var(--color-accent-amber);
   font-size: 14px;
   margin-bottom: 24px;
 }
 
-#overlay p {
+#modeSelect p {
   font-size: 15px;
   color: var(--color-text-muted);
   margin: 6px 0;
   letter-spacing: 1px;
   max-width: 580px;
+  width: 100%;
   line-height: 1.65;
 }
 
@@ -568,6 +901,9 @@ canvas {
   display: flex;
   gap: 14px;
   margin-top: 26px;
+  justify-content: center;
+  flex-wrap: wrap;
+  width: 100%;
 }
 
 .diff-btn {
@@ -595,7 +931,7 @@ canvas {
   box-shadow: 0 0 20px rgba(212, 175, 55, 0.25);
 }
 
-#overlay .start-btn {
+#modeSelect .start-btn {
   margin-top: 32px;
   padding: 18px 48px;
   background: rgba(184, 20, 20, 0.18);
@@ -611,13 +947,14 @@ canvas {
   transition: all 0.25s ease;
 }
 
-#overlay .start-btn:hover {
+#modeSelect .start-btn:hover {
   background: var(--color-accent-crimson);
   color: #ffffff;
   box-shadow: 0 0 50px rgba(184, 20, 20, 0.8);
 }
 
-#overlay.hidden, #chapterCard.hidden, #jumpscare.hidden, #win.hidden, #wardrobeOverlay.hidden, #bedOverlay.hidden {
+#loadingScreen.hidden, #mainMenu.hidden, #settingsPanel.hidden, #modeSelect.hidden,
+#chapterCard.hidden, #jumpscare.hidden, #win.hidden, #wardrobeOverlay.hidden, #bedOverlay.hidden {
   display: none !important;
   opacity: 0;
   pointer-events: none;
@@ -866,8 +1203,10 @@ canvas {
 }
 
 @media (max-width: 600px) {
-  #overlay h1 { font-size: 40px; letter-spacing: 10px; }
-  #overlay p { font-size: 13px; }
+  .menu-title { font-size: 44px; letter-spacing: 10px; }
+  .load-title { font-size: 28px; letter-spacing: 6px; }
+  #modeSelect h1 { font-size: 40px; letter-spacing: 10px; }
+  #modeSelect p { font-size: 13px; }
   #chapterCard h1 { font-size: 34px; letter-spacing: 6px; }
   #win h1, #jumpscare h1 { font-size: 32px; letter-spacing: 6px; }
   .parchment-card { padding: 28px 24px 20px 24px; }
